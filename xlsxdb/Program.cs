@@ -62,22 +62,37 @@ class Program
                 // iter each file (abs path)
                 foreach (var path in filePaths)
                 {
-                    var ws = DatabaseSheet
+                    try
+                    {
+                        var ws = DatabaseSheet
                         .Read(path)
                         .ValidateExistence(conn);
 
-                    if (!ws.HasDatabaseObject)
-                    {
-                        //log.Warning($"Tabela *{ws.TableName}* não existe na base.");
-                        ws.GenerateTableSql();
+                        if (!ws.HasDatabaseObject)
+                        {
+                            //log.Warning($"Tabela *{ws.TableName}* não existe na base.");
+                            ws.GenerateTableSql();
+                        }
+
+                        ctx.Status("Carregando dados...");
+
+                        ws
+                            .Fill(conn)
+                            .CopyToDatabase(conn)
+                            .DeleteFile();
                     }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine();
+                        ctx.Status("Erro: " + ex.Message);
 
-                    ctx.Status("Carregando dados...");
+                        new ToastContentBuilder()
+                        .AddText("Erro!")
+                        .AddText($"Veja a saída no console.")
+                        .Show();
 
-                    ws
-                        .Fill(conn)
-                        .CopyToDatabase(conn)
-                        .DeleteFile();
+                        Console.ReadKey();
+                    }
                 }
             });
 
