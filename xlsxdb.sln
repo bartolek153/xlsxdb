@@ -3,7 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.3.32929.385
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExcelDatabase", "ExcelDatabase\ExcelDatabase.csproj", "{5AE8A4E2-6B35-40F0-93A6-DA2620D688F5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "xlsxdb", "xlsxdb\xlsxdb.csproj", "{5AE8A4E2-6B35-40F0-93A6-DA2620D688F5}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{A5FA69B2-0473-4B8D-ADD0-DE4B9CC55A09}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		.gitignore = .gitignore
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
