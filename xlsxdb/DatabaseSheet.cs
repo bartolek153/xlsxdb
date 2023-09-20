@@ -13,10 +13,10 @@ namespace xlsxdb;
 internal class DatabaseSheet
 {
     public string TableName { get; set; } = null!;
-    public string FilePath { get; set; }
+    public string FilePath { get; set; } = null!;
     public bool HasDatabaseObject { get; set; }
     public int NumRows { get; set; }
-    public DataTable Data { get; set; }
+    public DataTable Data { get; set; } = null!;
 
     public static DatabaseSheet Read(string path)
     {

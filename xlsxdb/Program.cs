@@ -1,8 +1,12 @@
 ﻿using dotenv.net;
+
 using Microsoft.Toolkit.Uwp.Notifications;
+
 using OfficeOpenXml;
+
 using Serilog;
 using Serilog.Core;
+
 using Spectre.Console;
 using Spectre.Console.Extensions;
 
@@ -10,7 +14,7 @@ namespace xlsxdb;
 
 class Program
 {
-    static void Main(string[] args)
+    static async Task Main(string[] args)
     {
         AnsiConsole.Write(
             new FigletText("xlsxdb")
@@ -21,17 +25,25 @@ class Program
                    .WriteTo.Console()
                    .CreateLogger();
 
-        AnsiConsole.Status()
-            .Start("Generating project...", ctx =>
+        await AnsiConsole.Status()
+            .Spinner(Spinner.Known.Star)
+            .SpinnerStyle(Style.Parse("green"))
+            .Start("xlsxdb init", async ctx =>
             {
-                log.Information("Iniciando ...");
+                AnsiConsole.MarkupLine("[invert green]Hello World[/]");
+                Console.WriteLine("call1");
+
+                var a = new Test();
+                await a.TestMethod(); Console.WriteLine("end call1");
+
+                // log.Information("Initializing ...");
 
                 DotEnv.Load();
                 ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
-                ctx.Status("Conectando-se ao banco...");
                 ctx.Spinner(Spinner.Known.Dots11);
-                ctx.SpinnerStyle(Style.Parse("green"));
+                ctx.Status("Conectando-se ao banco...");
+
                 (var conn, string error) = DatabaseSheet.GetConnection(Environment.GetEnvironmentVariable("CONNECTION_STR")!);
                 if (conn is null)
                 {
