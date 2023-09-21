@@ -19,5 +19,10 @@ The worksheet file should be named with the same name of destiny table.
 
 ## TODO
 
-Generate SQL code, when table does not exist
-Write logs
+* Generate SQL code, when table does not exist;
+* Write Logs;
+* Enhance CLI;
+* SetOrdinal;
+* If column is not in database, ignore it;
+* When cell has no value, insert it as null (check if is PK)
+
