@@ -12,27 +12,70 @@ namespace xlsxdb;
 
 internal class DatabaseSheet
 {
+    //
+    // TODO: Add other drivers support
+    //
+
+    // the sql connection object (only supports SQL Server)
+    public static SqlConnection? Connection { get; set; }
+
     public string TableName { get; set; } = null!;
+
     public string FilePath { get; set; } = null!;
+
+    // indicates if the destiny table
+    // exists or not in the database
     public bool HasDatabaseObject { get; set; }
+
+    // spreadsheet column name
+    public string[] Header { get; set; } = null!;
+
     public int NumRows { get; set; }
+
     public DataTable Data { get; set; } = null!;
 
-    public static DatabaseSheet Read(string path)
+    public DatabaseSheet() { }
+    public DatabaseSheet(string path, string tableName) 
     {
-        DatabaseSheet dbsh = new DatabaseSheet();
-
-        dbsh.FilePath = path;
-        dbsh.TableName = Path.GetFileNameWithoutExtension(path).ToUpper();
-
-        return dbsh;
+        TableName = tableName;
+        FilePath = path;
     }
 
-    public DatabaseSheet ValidateExistence(SqlConnection connection)
+    // Establishes connection with the database, ping this connection
+    // and set the result object in Connection property,
+    // that can be used throughout the execution.
+    public static (SqlConnection?, string) SetConnection(string connectionString)
+    {
+        try
+        {
+            var conn = new SqlConnection(connectionString);
+            conn.Open();
+
+            Connection = conn;
+
+            return (conn, "");
+        }
+        catch (Exception ex)
+        {
+            return (null, $"Could not establish connection with the database. Reason: {ex.Message}");
+        }
+    }
+
+    // Returns an instantiated DatabaseSheet object,
+    // with metadata loaded as properties.
+    public static DatabaseSheet Read(string path)
+    {
+        return new DatabaseSheet(
+            path, 
+            Path.GetFileNameWithoutExtension(path).ToUpper()
+        );
+    }
+
+    public DatabaseSheet ValidateExistence()
     {
         string query = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = '{TableName}'";
 
-        using (SqlCommand command = new SqlCommand(query, connection))
+        using (SqlCommand command = new SqlCommand(query, Connection))
         {
             int tableCount = (int)command.ExecuteScalar();
 
@@ -71,6 +114,9 @@ internal class DatabaseSheet
         //    Console.WriteLine(key.Key);
     }
 
+    // Retrieve a DataTable object 
+    // that contains the column names of destiny table
+    // in the database
     private void RetrieveTableStructure(SqlConnection conn)
     {
         this.Data = new DataTable();
@@ -82,30 +128,38 @@ internal class DatabaseSheet
         }
     }
 
-    private void RearrangeColumnOrder(ExcelWorksheet ws, DataTable dto)
+    private void RearrangeColumnOrder(DataTable dto)
     {
-        var finalDt = new DataTable();
+        var ordinalMap = dto.Columns.Cast<DataColumn>()
+            .Select((col, index) => new { Column = col, Ordinal = index })
+            .ToDictionary(
+                item => item.Column.ColumnName,
+                item => item.Ordinal);
 
-        for (int col = 1; col <= ws.Dimension.Columns; col++)
+        var newColumns = Header
+            .Select(columnName => ordinalMap[columnName])
+            .ToList();
+
+        foreach (var newOrdinal in newColumns) 
         {
-            if (this.Data.Columns.Contains(ws.Cells[1, col].Text))
-            {
-                var sourceCol = this.Data.Columns[ws.Cells[1, col].Text];
-                finalDt.Columns.Add(sourceCol!.ColumnName, sourceCol.DataType);
-            }
+            dto.Columns[newOrdinal].SetOrdinal(newColumns.IndexOf(newOrdinal));
         }
-
-        this.Data = finalDt;
     }
 
-    public DatabaseSheet Fill(SqlConnection conn)
+    public DatabaseSheet Fill()
     {
-        RetrieveTableStructure(conn);
+        RetrieveTableStructure(Connection!);
 
         using var package = new ExcelPackage(FilePath);
         var ws = package.Workbook.Worksheets[0];
 
-        RearrangeColumnOrder(ws, this.Data);
+        foreach (var headerCell in ws.Cells[1, 1, 1, ws.Dimension.Columns])
+        {
+            if (headerCell.Value is not null)
+                Header.Append(headerCell.Value.ToString());
+        }
+
+        RearrangeColumnOrder(this.Data);
 
         string[] datetimeFormats = { "yyyy-MM-dd", "MM/dd/yyyy", "dd/MM/yyyy" };
 
@@ -130,18 +184,18 @@ internal class DatabaseSheet
         return this;
     }
 
-    public DatabaseSheet CopyToDatabase(SqlConnection conn)
+    public DatabaseSheet CopyToDatabase()
     {
-        using SqlBulkCopy bulk = new SqlBulkCopy(conn);
+        using SqlBulkCopy bulk = new SqlBulkCopy(Connection!);
         bulk.DestinationTableName = TableName;
         bulk.BatchSize = 10000;
         bulk.BulkCopyTimeout = 0;
 
         bulk.WriteToServer(this.Data);
 
-        int rowsAffected = CountTableRows(this.TableName, conn);
+        int rowsAffected = CountTableRows(this.TableName, Connection!);
 
-        Notify("Processamento finalizado!", $"Tabela {TableName} carregada com {rowsAffected} registros.");
+        Utils.Notify("Processamento finalizado!", $"Tabela {TableName} carregada com {rowsAffected} registros.");
 
         return this;
     }
@@ -158,32 +212,4 @@ internal class DatabaseSheet
         using SqlCommand command = new SqlCommand(query, conn);
         return (int)command.ExecuteScalar();
     }
-
-    public static string[] GetExcelFiles()
-    {
-        return Directory.GetFiles(Directory.GetCurrentDirectory(), "*.xlsx");
-    }
-
-    public static (SqlConnection?, string) GetConnection(string connectionString)
-    {
-        try
-        {
-            var conn = new SqlConnection(connectionString);
-            conn.Open();
-            return (conn, "");
-        }
-        catch (Exception ex)
-        {
-            return (null, $"Não foi possível estabelecer uma conexão com a base: {ex.Message}");
-        }
-    }
-
-    private void Notify(string title, string message)
-    {
-        new ToastContentBuilder()
-                .AddText(title)
-                .AddText(message)
-                .Show();
-    }
-
 }
